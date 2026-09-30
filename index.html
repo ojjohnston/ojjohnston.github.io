@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Olivia Johnston | Digital Media Production</title>
+<meta name="description" content="Olivia Johnston (OJ): digital media production. Creating, editing, producing.">
+<link rel="preload" href="fonts/cinzel-latin-700-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="img/plate.jpg" as="image">
+<style>
+  @font-face { font-family: "Cinzel"; font-weight: 500; font-display: swap; src: url("fonts/cinzel-latin-500-normal.woff2") format("woff2"); }
+  @font-face { font-family: "Cinzel"; font-weight: 700; font-display: swap; src: url("fonts/cinzel-latin-700-normal.woff2") format("woff2"); }
+  :root {
+    --ink: #1d2f5f;
+    --nav: #484957;
+    --edge: #101010;
+    --focus: #e8642c;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; background: var(--edge); }
+  body {
+    display: grid; place-items: center; overflow: hidden;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+
+  /* Everything is laid out on a 1920 x 1080 canvas that scales to fit the window. */
+  .stage {
+    position: relative; isolation: isolate; overflow: hidden;
+    width: min(100vw, calc(100vh * 16 / 9)); aspect-ratio: 16 / 9;
+    container-type: inline-size; background: var(--edge);
+  }
+  .stage > * { position: absolute; }
+
+  /* The moving film gate: the dark surround and paper, sliding the way the real frame did. */
+  .film { inset: 0; will-change: transform; }
+  .film img { width: 100%; height: 100%; display: block; user-select: none; -webkit-user-drag: none; }
+
+  .page { inset: 0; visibility: hidden; }
+  .page.is-active { visibility: visible; }
+  .page > * { position: absolute; }
+
+  /* Cut-out images have white where the paper was, so multiply lets the paper show through. */
+  .mul { mix-blend-mode: multiply; height: auto; user-select: none; -webkit-user-drag: none; }
+
+  .t {
+    transform: translateX(-50%); white-space: nowrap; text-align: center;
+    font-family: "Cinzel", "Trajan Pro", Georgia, serif; font-weight: 500; line-height: 1;
+    color: var(--ink); margin: 0;
+  }
+  .bold { font-weight: 700; }
+  .body {
+    transform: translateX(-50%); white-space: nowrap; text-align: center;
+    font-family: "Cinzel", "Trajan Pro", Georgia, serif; font-weight: 700; color: var(--ink);
+  }
+  .body p { margin: 0 0 1.6146cqw; }
+  .body p:last-child { margin-bottom: 0; }
+
+  .lcd { object-fit: cover; display: block; }
+
+  a { color: inherit; }
+  .item { text-decoration: none; cursor: default; }
+  .item[href] { cursor: pointer; }
+  .item[href]:hover { text-decoration: underline; text-underline-offset: .18em; text-decoration-thickness: 2px; }
+  .thumb { display: block; cursor: default; overflow: hidden; }
+  .thumb img { width: 100%; height: 100%; display: block; object-fit: cover; user-select: none; -webkit-user-drag: none; }
+  .thumb[href] { cursor: pointer; }
+  .thumb[href]:hover img { filter: brightness(1.12); }
+  .hit { display: block; border-radius: 50%; cursor: default; z-index: 3; transition: background-color .15s; }
+  .hit[href] { cursor: pointer; }
+  .hit[href]:hover { background: rgba(232, 100, 44, .16); }
+  a:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; border-radius: 2px; }
+
+  /* Work item pages */
+  .dcol { transform: translate(-50%, -50%); width: 28.1250cqw; display: flex; flex-direction: column; align-items: center; text-align: center; color: var(--ink); font-family: "Cinzel", "Trajan Pro", Georgia, serif; font-weight: 700; }
+  .dlabel { margin: 0 0 0.7292cqw; font-size: 0.8854cqw; line-height: 1; letter-spacing: .04em; }
+  .dtitle { margin: 0 0 2.2917cqw; font-size: 2.3958cqw; line-height: 1.12; text-wrap: balance; font-weight: 700; }
+  .dbody { font-size: 1.2917cqw; line-height: 1.6146cqw; text-wrap: balance; }
+  .dbody p { margin: 0 0 1.6146cqw; }
+  .dbody p:last-child { margin-bottom: 0; }
+  .daction { margin-top: 2.2917cqw; font-size: 1.1458cqw; line-height: 1; letter-spacing: .05em; color: var(--ink); text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: .28em; padding: .4em .2em; }
+  .daction[hidden] { display: none; }
+  .daction:hover { color: var(--focus); }
+  .dmedia { display: block; }
+  .dmedia.strip img { width: 100%; height: auto; display: block; user-select: none; -webkit-user-drag: none; }
+  .dmedia.strip[href]:hover img { filter: brightness(1.1); }
+  .dmedia.player { background: #101010; padding: 0.7292cqw; box-shadow: 0 0.1562cqw 0.7292cqw rgba(50, 30, 20, .28); }
+  .dmedia.player video { display: block; width: 100%; aspect-ratio: 16 / 9; background: #000; }
+  .dmedia.player iframe { display: block; width: 100%; aspect-ratio: 16 / 9; border: 0; background: #000; }
+
+  /* Video with a caption underneath (Freshly Squeezed preview). The clip carries its own black film border. */
+  .dmedia.dwrap { display: flex; flex-direction: column; align-items: center; }
+  .dwrap .pbox { width: 100%; background: #000; box-shadow: 0 0.1562cqw 0.7292cqw rgba(50, 30, 20, .28); }
+  .dwrap .pbox video { display: block; width: 100%; aspect-ratio: 16 / 9; background: #000; }
+  .dcap { margin-top: 1.5625cqw; display: flex; flex-direction: column; align-items: center; text-align: center; color: var(--ink); font-family: "Cinzel", "Trajan Pro", Georgia, serif; font-weight: 700; }
+  .dcap .dlabel { margin: 0 0 0.5208cqw; }
+  .dsub { margin: 0; font-size: 1.5625cqw; line-height: 1.1; }
+  .dcap .daction { margin-top: 1.1458cqw; }
+  /* Spotify player: built at its real pixel size (728x232 on the 1920 stage), then scaled by fitEmbeds() so its controls are never cramped or clipped */
+  .dcap:has(.spotwrap) { width: 100%; }
+  .spotwrap { position: relative; width: 100%; height: 13.3333cqw; margin-top: 1.1458cqw; }
+  .spotwrap .spot { position: absolute; left: 0; top: 0; width: 728px; height: 256px; border: 0; border-radius: 12px; transform-origin: 0 0; }
+
+  /* Instagram embed: built at its real pixel size, then scaled to the stage by fitEmbeds() so it never gets squished */
+  .embed { transform-origin: center center; box-shadow: 0 0.1562cqw 0.7292cqw rgba(50, 30, 20, .22); background: #fff; }
+  .embed iframe { display: block; width: 100%; height: 100%; border: 0; }
+
+  /* Photos page */
+  .tile { display: block; padding: 0; border: 0; background: #101010; cursor: zoom-in; box-shadow: 0 1px 2px rgba(0,0,0,.3), 0.2083cqw 0.4167cqw 0.7292cqw rgba(60, 40, 30, .28); transition: transform .18s ease, box-shadow .18s ease; }
+  .tile img { width: 100%; height: 100%; display: block; object-fit: cover; user-select: none; -webkit-user-drag: none; }
+  .tile:hover { transform: translateY(-0.2083cqw); box-shadow: 0 2px 3px rgba(0,0,0,.3), 0.3125cqw 0.7292cqw 20px rgba(60, 40, 30, .32); }
+  .tile:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+  @media (prefers-reduced-motion: reduce) { .tile, .tile:hover { transition: none; transform: none; } }
+
+  /* Photo viewer */
+  .lb { inset: 0; z-index: 7; display: flex; align-items: center; justify-content: center; background: rgba(10, 9, 9, .97); }
+  .lb[hidden] { display: none; }
+  .lb-img { max-width: 78%; max-height: 85%; object-fit: contain; display: block; box-shadow: 0 0.3125cqw 1.3542cqw rgba(0,0,0,.6); }
+  .lb-btn { position: absolute; display: grid; place-items: center; width: 3.3333cqw; height: 3.3333cqw; padding: 0; border: 0; border-radius: 50%; background: transparent; color: #eadfd4; cursor: pointer; transition: background-color .15s; }
+  .lb-btn:hover { background: rgba(255,255,255,.12); }
+  .lb-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  .lb-btn svg { width: 46%; height: 46%; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .lb-close { top: 1.4583cqw; right: 1.6667cqw; }
+  .lb-prev { left: 2.0833cqw; top: 50%; transform: translateY(-50%); }
+  .lb-next { right: 2.0833cqw; top: 50%; transform: translateY(-50%); }
+  .lb-count { position: absolute; bottom: 1.3542cqw; left: 0; right: 0; margin: 0; text-align: center; color: #cfc3b8; font: 500 0.9375cqw/1 "Cinzel", Georgia, serif; letter-spacing: .08em; }
+
+  /* Small text nav, same place on every page */
+  .nav {
+    display: flex; gap: 1.1979cqw; justify-content: flex-end; line-height: 1; z-index: 5;
+    font-family: Tahoma, Verdana, "DejaVu Sans", sans-serif; color: var(--nav);
+  }
+  .nav a { color: var(--nav); text-decoration: underline; text-underline-offset: .15em; padding: .35em .1em; margin: -.35em -.1em; }
+  .nav a[hidden] { display: none; }
+  .nav a[aria-current="page"] { text-decoration-thickness: 2px; }
+  .nav a[aria-disabled="true"] { cursor: default; }
+
+  /* Film effects that sit over everything */
+  #grain, #dust { inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 8; }
+  #grain { mix-blend-mode: overlay; opacity: .07; }
+  #cut { inset: 0; background: #0b0b0b; opacity: 0; pointer-events: none; z-index: 9; transition: opacity .1s linear; }
+  #cut.on { opacity: 1; }
+
+  .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+  .rotate-hint {
+    display: none; position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+    padding: .7rem 1rem calc(.7rem + env(safe-area-inset-bottom)); background: #f1e6dc; color: var(--ink);
+    font: 500 .8rem/1.3 "Cinzel", Georgia, serif; text-align: center;
+  }
+  @media (max-aspect-ratio: 1/1) { .rotate-hint { display: block; } }
+  @media (prefers-reduced-motion: reduce) { #cut { transition: none; } }
+</style>
+</head>
+<body>
+
+<main class="stage" id="stage">
+  <div class="film" id="film"><img src="img/plate.jpg" alt="" width="1920" height="1080" draggable="false"></div>
+
+  <section class="page" id="page-home" data-route="home" aria-label="Home">
+    <h1 class="sr-only">Olivia Johnston, digital media production. Creating, editing, producing.</h1>
+    <div class="t bold" style="left:50.0000%;top:10.1966%;font-size:0.9583cqw">DIGITAL MEDIA PRODUCTION</div>
+    <img class="mul" src="img/logo.jpg" alt="Olivia Johnston, with a pumpkin and a J drawn in crayon" style="left:27.3958%;top:15.2778%;width:36.4062%" width="699" height="338" draggable="false">
+    <img class="mul" src="img/camera.jpg" alt="A camcorder with its screen open" style="left:27.6042%;top:47.2222%;width:37.3958%" width="718" height="427" draggable="false">
+    <video class="lcd" muted loop playsinline preload="auto" poster="media/lcd.jpg" aria-hidden="true" style="left:49.4792%;top:54.8148%;width:11.2500%;height:12.4074%"><source src="media/lcd.webm" type="video/webm"><source src="media/lcd.mp4" type="video/mp4"></video>
+    <div class="t bold" style="left:52.2135%;top:79.6410%;font-size:0.9583cqw">CREATING, EDITING, PRODUCING</div>
+  </section>
+
+  <section class="page" id="page-about" data-route="about" aria-label="About me">
+    <h1 class="t bold" style="left:32.6562%;top:13.0860%;font-size:2.8958cqw">HI IM OJ</h1>
+    <div class="body" style="left:32.7083%;top:21.2380%;font-size:1.2917cqw;line-height:1.6146cqw"><p>I am a communications student<br>concentrating in digital media<br>production, based in Atlanta. I<br>love to create and put my own<br>touch on things.</p><p>Having a creative outlet, whether<br>in music, film, sewing,<br>photography, or drawing, is<br>violently important to me.</p><p>I am especially interested in<br>videography, social media design,<br>editing,&nbsp; storytelling, and<br>interviews.</p><p>Being behind the camera,<br>expressing my thoughts out loud<br>or just creating something funky,<br>I want to create media pleasing to<br>the human experience and<br>something someone out there can<br>escape into or register with.</p></div>
+    <img class="mul" src="img/aboutphotos.jpg" alt="Two snapshots of Olivia, each with a pumpkin sticker" style="left:53.4896%;top:7.3148%;width:29.8958%" width="574" height="904" draggable="false">
+  </section>
+
+  <section class="page" id="page-work" data-route="work" aria-label="Work">
+        <h1 class="t bold" style="left:49.3229%;top:10.1163%;font-size:1.4010cqw">WORK</h1>
+    <div class="t bold" style="left:21.3542%;top:17.2648%;font-size:0.7865cqw">VIDEOGRAPHY</div>
+    <a class="thumb" href="#videography" aria-label="VIDEOGRAPHY" style="left:11.8750%;top:19.9074%;width:17.9167%;height:17.8704%"><img src="img/t_videography.jpg" alt="" draggable="false"></a>
+    <div class="t bold" style="left:41.0417%;top:17.2648%;font-size:0.7865cqw">SOCIAL MEDIA REELS</div>
+    <a class="thumb" href="#social" aria-label="SOCIAL MEDIA REELS" style="left:31.3542%;top:19.9074%;width:17.9688%;height:17.8704%"><img src="img/t_social.jpg" alt="" draggable="false"></a>
+    <div class="t bold" style="left:60.6771%;top:16.8944%;font-size:0.7865cqw">WEDDING VIDEO</div>
+    <a class="thumb" href="#wedding" aria-label="WEDDING VIDEO" style="left:50.7292%;top:20.0926%;width:17.9167%;height:17.8704%"><img src="img/t_wedding.jpg" alt="" draggable="false"></a>
+    <div class="t bold" style="left:80.3646%;top:16.5241%;font-size:0.7865cqw">PODCASTING</div>
+    <a class="thumb" href="#podcasting" aria-label="PODCASTING" style="left:70.2604%;top:19.9074%;width:17.6562%;height:17.5926%"><img src="img/t_podcasting.jpg" alt="" draggable="false"></a>
+    <div class="t bold" style="left:21.4583%;top:51.0309%;font-size:0.9531cqw">PHOTOS</div>
+    <a class="thumb" href="#photos" aria-label="PHOTOS" style="left:17.8646%;top:54.6296%;width:23.9062%;height:23.8889%"><img src="img/t_photos.jpg" alt="" draggable="false"></a>
+    <div class="t bold" style="left:73.1250%;top:51.0309%;font-size:0.9531cqw">YOUTUBE</div>
+    <a class="thumb" href="#youtube" aria-label="YOUTUBE" style="left:58.2812%;top:54.6296%;width:23.9062%;height:23.8889%"><img src="img/t_youtube.jpg" alt="" draggable="false"></a>
+  </section>
+
+  <section class="page" id="page-skills" data-route="skills" aria-label="Skills">
+        <h1 class="t bold" style="left:50.0000%;top:10.2089%;font-size:1.4010cqw">SKILLS</h1>
+    <div class="t bold" style="left:50.8594%;top:13.4761%;font-size:1.2552cqw">WHAT I WORK WITH AND MORE</div>
+    <a class="t bold item" data-link="davinci" style="left:24.8958%;top:30.2155%;font-size:1.3646cqw">DaVINCCI RESOLVE</a>
+    <a class="t bold item" data-link="premiere" style="left:24.8958%;top:36.5118%;font-size:1.3646cqw">ADOBE PREMIRE PRO</a>
+    <a class="t bold item" data-link="photoshop" style="left:24.8958%;top:42.5303%;font-size:1.3646cqw">ADOBE PHOTO SHOP</a>
+    <a class="t bold item" data-link="audition" style="left:24.8958%;top:48.7340%;font-size:1.3646cqw">ADOBE AUDITION</a>
+    <a class="t bold item" data-link="storytelling" style="left:24.8958%;top:54.9377%;font-size:1.3646cqw">STORY TELLING</a>
+    <a class="t bold item" data-link="interviewing" style="left:24.8958%;top:61.0489%;font-size:1.3646cqw">INTERVIEWING</a>
+    <a class="t bold item" data-link="group" style="left:24.8958%;top:67.2526%;font-size:1.3646cqw">GROUP COMMUNICATION</a>
+    <a class="t bold item" data-link="managing" style="left:24.8958%;top:73.4563%;font-size:1.3646cqw">MANAGING</a>
+    <img class="mul" src="img/stars.jpg" alt="A doodle of overlapping stars" style="left:18.9583%;top:6.9444%;width:11.5104%" width="221" height="189" draggable="false">
+    <img class="mul" src="img/skillphoto.jpg" alt="Olivia posing on film with a pumpkin sticker" style="left:51.4583%;top:18.2407%;width:30.8854%" width="593" height="819" draggable="false">
+  </section>
+
+  <section class="page" id="page-contact" data-route="contact" aria-label="Contact">
+        <h1 class="t bold" style="left:50.0521%;top:10.5160%;font-size:1.2396cqw">CONTACT ME</h1>
+    <div class="t bold" style="left:50.0521%;top:13.2616%;font-size:0.9062cqw">LETS WORK TOGETHER</div>
+    <img class="mul" src="img/contactphoto.jpg" alt="An arm holding a doll's hand, with small icons drawn on the skin like tattoos" style="left:28.2292%;top:17.5926%;width:45.6250%" width="876" height="786" draggable="false">
+    <a class="hit" data-link="instagram" aria-label="Instagram" style="left:63.8021%;top:21.6667%;width:4.3750%;height:6.6667%"></a>
+    <a class="hit" data-link="phone" aria-label="Phone" style="left:63.3854%;top:37.6852%;width:3.6458%;height:7.2222%"></a>
+    <a class="hit" data-link="pumpkin" aria-label="Pumpkin" style="left:44.3229%;top:42.0370%;width:2.8125%;height:4.6296%"></a>
+    <a class="hit" data-link="email" aria-label="Email" style="left:46.7708%;top:45.1852%;width:2.8125%;height:4.6296%"></a>
+    <a class="hit" data-link="youtube" aria-label="YouTube" style="left:53.9583%;top:51.6667%;width:3.5417%;height:5.9259%"></a>
+    <div class="t bold" style="left:50.9896%;top:89.0364%;font-size:1.2292cqw">CLICK ON THEM</div>
+  </section>
+
+  <section class="page" id="page-videography" data-route="videography" aria-label="Videography">
+    <div class="dcol" style="left:30.7292%;top:50.4630%"><p class="dlabel">VIDEOGRAPHY</p><h1 class="dtitle">LIVE @ BLACKBIRD</h1><div class="dbody"><p>Live @ Blackbird is an intimate live filming session in a coffee shop. I shoot it on a Blackmagic Pocket Cinema Camera, then color grade and edit in DaVinci Resolve.</p><p>Here is a full video of the band Tattoo Logic.</p></div><a class="daction" data-action="videography" hidden>WATCH ON YOUTUBE</a></div>
+    <div class="dmedia player" style="left:48.7500%;top:30.9375%;width:37.9167%"><iframe data-src="https://www.youtube-nocookie.com/embed/LiOLWSISs_g?rel=0&amp;playsinline=1" title="Live @ Blackbird: Tattoo Logic, full video" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe></div>
+  </section>
+  <section class="page" id="page-social" data-route="social" aria-label="Social Media Reels">
+    <div class="dcol" style="left:30.7292%;top:50.4630%"><p class="dlabel">SOCIAL MEDIA REELS</p><h1 class="dtitle">SOUNDS OF THE SPRING</h1><div class="dbody"><p>Sounds of the Spring is a local music festival. I shot with a Lumix GH7 and edited this reel with Adobe Premiere Pro.</p></div><a class="daction" data-action="social" hidden>WATCH ON INSTAGRAM</a></div>
+    <div class="embed" id="reel-embed" style="left:67.7083%;top:50.4630%;width:380px;height:840px"><iframe data-src="https://www.instagram.com/reel/DX7Ra8OR3nI/embed/" title="Sounds of the Spring reel on Instagram" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen scrolling="no"></iframe></div>
+  </section>
+  <section class="page" id="page-wedding" data-route="wedding" aria-label="Wedding Video">
+    <div class="dcol" style="left:30.7292%;top:50.4630%"><p class="dlabel">WEDDING VIDEO</p><h1 class="dtitle">MCKAY &amp; CODY</h1><div class="dbody"><p>I am self-employed, and this is a short segment of McKay and Cody's wedding video.</p></div></div>
+    <div class="dmedia player" style="left:48.7500%;top:30.9375%;width:37.9167%"><video id="wedding-video" controls preload="metadata" playsinline poster="media/wedding-poster.jpg" aria-label="A short segment of McKay and Cody's wedding video"><source src="media/wedding.mp4" type="video/mp4"></video></div>
+  </section>
+  <section class="page" id="page-podcasting" data-route="podcasting" aria-label="Podcasting">
+    <div class="dcol" style="left:30.7292%;top:50.4630%"><p class="dlabel">PODCASTING</p><h1 class="dtitle">FRESHLY SQUEEZED</h1><div class="dbody"><p>I am the editor and host of Freshly Squeezed. I record and mix in Adobe Audition, and it is where I show my love for storytelling, interviewing and conversation.</p></div><a class="daction" data-action="podcasting" hidden>LISTEN ON SPOTIFY</a></div>
+    <div class="dmedia dwrap" style="left:48.7500%;top:24.5000%;width:37.9167%">
+      <div class="pbox"><video id="squeeze-video" controls preload="metadata" playsinline poster="media/freshly-squeezed-poster.jpg" aria-label="Freshly Squeezed preview: a claymation intro"><source src="media/freshly-squeezed-preview.mp4" type="video/mp4"></video></div>
+      <div class="dcap"><p class="dlabel">EPISODE</p><h2 class="dsub">A SQUEEZE</h2><div class="spotwrap"><iframe class="spot" title="Freshly Squeezed: a squeeze (Spotify)" src="https://open.spotify.com/embed/episode/62m80sWribH0yXxPBRd6Wv?utm_source=generator" loading="lazy" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"></iframe></div></div>
+    </div>
+  </section>
+  <section class="page" id="page-youtube" data-route="youtube" aria-label="Youtube">
+    <div class="dcol" style="left:30.7292%;top:50.4630%"><p class="dlabel">YOUTUBE</p><h1 class="dtitle">MY YOUTUBE</h1><div class="dbody"><p>My YouTube is one of my creative outlets. It is where I do random fun things and show my life, my love for travel and fashion.</p></div><a class="daction" data-action="youtube" hidden>VISIT MY CHANNEL</a></div>
+    <a class="dmedia strip" data-action="youtube" style="left:52.0833%;top:34.8493%;width:31.2500%"><img src="img/t_youtube.jpg" alt="A collage of frames from my YouTube videos" draggable="false"></a>
+  </section>
+
+  <section class="page" id="page-photos" data-route="photos" aria-label="Photos">
+    <h1 class="t bold" style="left:50.0000%;top:10.2089%;font-size:1.4010cqw">PHOTOS</h1>
+    <div class="t bold" style="left:50.0000%;top:13.4761%;font-size:1.2552cqw">EDITED IN LIGHTROOM</div>
+    <button class="tile" type="button" data-i="0" aria-label="View larger: A woman in a red dress smiling on the porch of the Alpha Gamma Delta house, under a War of the Roses banner" style="left:18.2599%;top:18.9815%;width:9.9079%;height:31.2709%"><img src="photos/agd_t.jpg" alt="" width="2920" height="5184" loading="lazy" draggable="false"></button>
+    <button class="tile" type="button" data-i="1" aria-label="View larger: Black and white photo of two guitarists in front of the Fire House banner" style="left:29.4178%;top:18.9815%;width:11.7352%;height:31.2709%"><img src="photos/fire-bw_t.jpg" alt="" width="1816" height="2722" loading="lazy" draggable="false"></button>
+    <button class="tile" type="button" data-i="2" aria-label="View larger: A shirtless guitarist with a burlap sack over his head playing a red guitar under purple stage light" style="left:42.4030%;top:18.9815%;width:11.7266%;height:31.2709%"><img src="photos/burlap_t.jpg" alt="" width="3456" height="5184" loading="lazy" draggable="false"></button>
+    <button class="tile" type="button" data-i="3" aria-label="View larger: A band playing outside in front of a hand-painted Fire House banner, with string lights overhead" style="left:55.3796%;top:18.9815%;width:26.3606%;height:31.2709%"><img src="photos/fire-color_t.jpg" alt="" width="3796" height="2533" loading="lazy" draggable="false"></button>
+    <button class="tile" type="button" data-i="4" aria-label="View larger: A singer in a yellow balaclava and a guitarist swinging a fox tail at a blue-lit Live @ Blackbird show" style="left:18.2599%;top:52.4747%;width:31.1151%;height:36.8772%"><img src="photos/blackbird_t.jpg" alt="" width="5184" height="3456" loading="lazy" draggable="false"></button>
+    <button class="tile" type="button" data-i="5" aria-label="View larger: Friends dancing and laughing at night, lit by camera flash" style="left:50.6250%;top:52.4747%;width:31.1151%;height:36.8772%"><img src="photos/dance_t.jpg" alt="" width="6000" height="4000" loading="lazy" draggable="false"></button>
+  </section>
+
+  <div class="lb" id="lb" hidden role="dialog" aria-modal="true" aria-label="Photo viewer">
+    <button class="lb-btn lb-close" type="button" aria-label="Close photo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19"/></svg></button>
+    <button class="lb-btn lb-prev" type="button" aria-label="Previous photo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4l-8 8 8 8"/></svg></button>
+    <img class="lb-img" alt="" draggable="false">
+    <button class="lb-btn lb-next" type="button" aria-label="Next photo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4l8 8-8 8"/></svg></button>
+    <p class="lb-count" aria-live="polite"></p>
+  </div>
+
+
+  <nav class="nav" id="nav" aria-label="Main" style="right:18.5417%;top:5.4630%;font-size:0.7812cqw">
+    <a href="#home" id="nav-home" hidden>home</a>
+    <a href="#about">about</a>
+    <a href="#work">work</a>
+    <a href="#skills">skills</a>
+    <a href="#contact">contact</a>
+  </nav>
+  <canvas id="grain" aria-hidden="true"></canvas>
+  <canvas id="dust" aria-hidden="true"></canvas>
+  <div id="cut" aria-hidden="true"></div>
+</main>
+
+<p class="rotate-hint">Turn your phone sideways for the full view.</p>
+
+<script>
+  /* ------------------------------------------------------------------
+     Fill these in. Leave a link as "" and that spot stays unclickable.
+     ------------------------------------------------------------------ */
+  const LINKS = {
+    // Contact page (the icons on the arm)
+    instagram: "https://www.instagram.com/olivia.johnston35",   // the camera
+    phone: "tel:+17705988089",       // the phone
+    pumpkin: "",     // the little pumpkin
+    email: "mailto:oliviafjohnston2005@gmail.com",       // the envelope
+    youtube: "https://youtube.com/@ojsoneat",     // the play button (also used on the YouTube work page)
+
+    // Work pages (each thumbnail opens its own page; these are the buttons on those pages)
+    videography: "https://youtu.be/LiOLWSISs_g",                          // Live @ Blackbird: the full Tattoo Logic video
+    social: "https://www.instagram.com/reel/DX7Ra8OR3nI/",                // Sounds of the Spring reel (plays on the page; this is the "watch on Instagram" button)
+    podcasting: "https://open.spotify.com/show/1FMR6RNImDSJV6wjfFdg1P",   // Freshly Squeezed on Spotify
+    squeeze: "https://open.spotify.com/episode/62m80sWribH0yXxPBRd6Wv",   // the "A Squeeze" episode on Spotify
+    // Live @ Blackbird plays from YouTube and the reel from Instagram, right on their pages.
+    // The wedding video, the Freshly Squeezed preview and photos play from this site. The YouTube page uses the youtube link above.
+
+    // Skills page
+    davinci: "",
+    premiere: "",
+    photoshop: "",
+    audition: "",
+    storytelling: "",
+    interviewing: "",
+    group: "",
+    managing: ""
+  };
+
+  /* ------------------------------------------------------------------ */
+  const DETAIL = ["videography", "social", "wedding", "podcasting", "photos", "youtube"];
+  const ROUTES = ["home", "about", "work", "skills", "contact", ...DETAIL];
+  const pages = Object.fromEntries(ROUTES.map(r => [r, document.getElementById("page-" + r)]));
+  const nav = document.getElementById("nav");
+  const navHome = document.getElementById("nav-home");
+  const cut = document.getElementById("cut");
+  const lcd = document.querySelector(".lcd");
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+  /* ---------- Work item pages: photo viewer ---------- */
+  const PHOTOS = [{"src": "photos/agd.jpg", "alt": "A woman in a red dress smiling on the porch of the Alpha Gamma Delta house, under a War of the Roses banner"}, {"src": "photos/fire-bw.jpg", "alt": "Black and white photo of two guitarists in front of the Fire House banner"}, {"src": "photos/burlap.jpg", "alt": "A shirtless guitarist with a burlap sack over his head playing a red guitar under purple stage light"}, {"src": "photos/fire-color.jpg", "alt": "A band playing outside in front of a hand-painted Fire House banner, with string lights overhead"}, {"src": "photos/blackbird.jpg", "alt": "A singer in a yellow balaclava and a guitarist swinging a fox tail at a blue-lit Live @ Blackbird show"}, {"src": "photos/dance.jpg", "alt": "Friends dancing and laughing at night, lit by camera flash"}];
+  const lb = document.getElementById("lb");
+  const lbImg = lb.querySelector(".lb-img"), lbCount = lb.querySelector(".lb-count");
+  let lbIndex = 0, lbOpener = null;
+  function lbShow(i) {
+    lbIndex = (i + PHOTOS.length) % PHOTOS.length;
+    const p = PHOTOS[lbIndex];
+    lbImg.src = p.src; lbImg.alt = p.alt;
+    lbCount.textContent = (lbIndex + 1) + " / " + PHOTOS.length;
+    [lbIndex + 1, lbIndex - 1].forEach(j => { new Image().src = PHOTOS[(j + PHOTOS.length) % PHOTOS.length].src; });
+  }
+  function lbOpen(i, opener) { lbOpener = opener; lbShow(i); lb.hidden = false; lb.querySelector(".lb-close").focus(); }
+  function lbClose() {
+    if (lb.hidden) return;
+    lb.hidden = true; lbImg.removeAttribute("src");
+    if (lbOpener && document.contains(lbOpener)) lbOpener.focus();
+    lbOpener = null;
+  }
+  document.addEventListener("click", e => {
+    const tile = e.target.closest(".tile");
+    if (tile) return lbOpen(+tile.dataset.i, tile);
+    if (e.target === lb || e.target.closest(".lb-close")) return lbClose();
+    if (e.target.closest(".lb-prev")) return lbShow(lbIndex - 1);
+    if (e.target.closest(".lb-next")) return lbShow(lbIndex + 1);
+  });
+  document.addEventListener("keydown", e => {
+    if (lb.hidden) return;
+    if (e.key === "Escape") lbClose();
+    else if (e.key === "ArrowLeft") lbShow(lbIndex - 1);
+    else if (e.key === "ArrowRight") lbShow(lbIndex + 1);
+    else if (e.key === "Tab") {
+      const f = [...lb.querySelectorAll("button")];
+      const first = f[0], last = f[f.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+  });
+  let touchX = null;
+  lb.addEventListener("touchstart", e => { touchX = e.changedTouches[0].clientX; }, { passive: true });
+  lb.addEventListener("touchend", e => {
+    if (touchX === null) return;
+    const dx = e.changedTouches[0].clientX - touchX; touchX = null;
+    if (Math.abs(dx) > 50) lbShow(lbIndex + (dx < 0 ? 1 : -1));
+  });
+
+
+  // External links
+  document.querySelectorAll("[data-link], [data-action]").forEach(el => {
+    const url = LINKS[el.dataset.link || el.dataset.action];
+    if (el.dataset.action && url) el.hidden = false;
+    if (url) {
+      el.href = url;
+      if (!/^(mailto:|tel:)/.test(url)) { el.target = "_blank"; el.rel = "noopener"; }
+    } else {
+      el.removeAttribute("href");
+      if (el.closest(".nav")) el.setAttribute("aria-disabled", "true");
+    }
+  });
+  function showRoute(name) {
+    ROUTES.forEach(r => pages[r].classList.toggle("is-active", r === name));
+    navHome.hidden = (name === "home");
+    const navName = DETAIL.includes(name) ? "work" : name;
+    lbClose();
+    document.querySelectorAll(".dmedia video").forEach(v => { if (!pages[name].contains(v)) v.pause(); });
+    // YouTube / Instagram embeds only load while their page is open, and stop when you leave it
+    document.querySelectorAll("iframe[data-src]").forEach(fr => {
+      const on = pages[name].contains(fr), cur = fr.getAttribute("src");
+      if (on && cur !== fr.dataset.src) fr.setAttribute("src", fr.dataset.src);
+      else if (!on && cur && cur !== "about:blank") fr.setAttribute("src", "about:blank");
+    });
+    nav.querySelectorAll("a").forEach(a => {
+      if (a.getAttribute("href") === "#" + navName) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
+    });
+    const titles = { home: "", about: "About | ", work: "Work | ", skills: "Skills | ", contact: "Contact | ",
+      videography: "Live @ Blackbird | ", social: "Sounds of the Spring | ", wedding: "Wedding Video | ", podcasting: "Freshly Squeezed | ", photos: "Photos | ", youtube: "YouTube | " };
+    document.title = titles[name] + "Olivia Johnston | Digital Media Production";
+    if (name === "home" && !reduceMotion.matches) { lcd.play().catch(() => {}); } else { lcd.pause(); }
+  }
+  function currentRoute() { const h = location.hash.replace("#", ""); return ROUTES.includes(h) ? h : "home"; }
+
+  // A quick dip to black between pages, like a projector cut
+  let cutTimer;
+  function go() {
+    const next = currentRoute();
+    if (reduceMotion.matches) return showRoute(next);
+    clearTimeout(cutTimer);
+    cut.classList.add("on");
+    cutTimer = setTimeout(() => { showRoute(next); requestAnimationFrame(() => cut.classList.remove("on")); }, 110);
+  }
+  window.addEventListener("hashchange", go);
+  showRoute(currentRoute());
+  document.addEventListener("pointerdown", () => { if (currentRoute() === "home" && !reduceMotion.matches && lcd.paused) lcd.play().catch(() => {}); }, { once: true });
+
+  /* ------------------------------------------------------------------
+     Film look: the frame slides by the same tiny amounts as in the original
+     footage, plus grain and the odd speck of dust.
+     ------------------------------------------------------------------ */
+  const WOBBLE = {"dx": [0.6, -0.2, -0.2, -0.1, 0.0, -1.5, -2.1, -2.1, -2.1, -1.7, -1.4, -0.9, -1.7, -2.3, -2.3, -2.2, -2.0, -1.8, -1.5, -1.1, -1.2, -0.9, -0.9, 0.3, 1.5, 3.0, 3.0, 2.5, 1.7, 0.8, 0.5, -0.8, -0.8, -1.7, -2.3, -2.8, -2.7, -0.8, -0.8, 0.8, 0.0, -1.9, -1.0, -0.1, -0.1, 0.0, 0.2, 0.5, 0.9, -0.1, -0.1, 0.3, 2.2, 2.4, 1.5, 0.9, 0.9, 0.9, 1.6, 1.5, 1.5, 2.5, 2.4, 2.2, 1.1, 1.4, 1.7, 2.1, 2.1, 2.1, -0.8, -3.1, -2.4, -1.7, -1.7, -0.1, 2.5, 2.1, 0.5, -0.4, -0.4, -0.2, 0.5, 1.4, 0.5, -1.4, -1.4, 0.2, 2.3, 2.5, 2.5, -0.6, -0.6, -2.9, -2.3, 0.4, 2.1, 3.5, 3.5, 5.3, 3.1, -0.4, 1.1, 3.1, 3.1, 3.3, 2.6, 0.1, -2.3, -2.6, -2.7, -2.4, -1.2, 0.1, -0.7, -2.0, -2.0, -3.6, -3.9, -2.9, -2.8, 0.1, 0.2, 1.0, -0.5, -0.7, -0.7, -1.5, -1.5, -1.5, -1.5, -1.5, 0.1, 1.2, 1.2, -0.5, -2.4, -2.7, -2.8, -1.9, -1.9, -0.2, -0.6, -1.7, -1.7, -3.0, -3.0, -4.8, -4.0, -0.4, 0.6, 0.7, 0.7, 2.1, 2.0, -0.6, -1.3, -0.6, -0.6, 0.4, -0.6, -3.3, -3.4, -0.5, -0.3, 1.0, 0.9, -0.8, -2.0, 0.4, 0.4, 2.2, -0.2, -1.8, -1.0, -0.0, -0.0, 0.4, 0.5, -0.9, -1.5, -1.2, -1.3, -1.1, -0.4, 0.5, 1.5, 2.5, 2.6, 1.8, -1.6, -2.2, -1.4, -0.6, -0.7, -0.9, 0.5, 2.1, 1.1, 0.1, 0.1, -0.2, -0.2, -0.1, 0.1, 0.2, 0.2, 0.0, -0.7, -1.3, -3.2, -4.6, -4.6, -4.9, -3.9, -1.9, -1.2, 1.4, 1.5, 1.7, 0.7, 1.0, -0.2, -0.2, -0.2, 1.9, 0.3, -2.5, -0.2, 2.8, 2.8, 3.5, 3.6, 1.8, 0.0, -0.5, -0.5, -1.3, -2.8, -2.3, -1.4, 0.6, 0.6, 2.1, 2.0, 0.5, 0.3, 0.1, 0.1, -0.8, -0.8, 0.1, -0.6, -2.4, -2.4, -1.7, -0.7, -0.2, 0.8, 1.4, 1.3, 0.4, 0.8, 1.4, -0.0, -1.0, -1.0, 0.3, 0.5, -0.6, -0.7, -0.8, -0.8, -2.2, -0.4, 3.8, 2.7, -0.4, -0.4, -0.6, 0.2, 1.4, 2.1, 4.6, 4.6, 5.9, 4.3, 1.2, 0.1, 1.7, 1.8, 2.1, 1.2, 0.9, 0.3, -0.2, -0.3, -0.4, 2.4, 5.0, 3.2, -0.5, -0.5, -0.6, -0.7, -1.7, -2.5, -3.3, -3.4, -3.4, -3.5, -3.3, -1.6, 1.5, 1.4, 2.0, 0.2, -0.9, -0.4, -1.3, -1.4, -1.6, -0.5, -0.5, -0.5, 0.5, 0.5, 1.0, 1.3, 0.9, -0.1, -0.9, -0.9, -0.8, -1.2, -1.0, 0.4, 1.2, 1.2, 0.3, 0.4, 0.4, -1.3, -1.4, -1.4, -0.5, -1.3, -3.2, -3.2, -1.2, -1.2, -0.4, -1.3, -0.6, 0.2, -0.4, -0.4, -0.5, -1.3, -3.6, -3.8, -1.3, -1.2, 0.5, -0.8, -2.1, -0.6, 3.2, 3.2, 3.5, 1.4, -0.5, -1.1, -0.3, -0.2, 2.1, 2.1, 1.1, 0.9, 0.5, 0.5, 0.9, 1.6, 2.5, 3.7, 4.5, 4.5, 4.8, 2.4, -1.4, 0.7, 2.5, 2.6, 1.3, 1.3, 4.2, 5.5, 5.6, 5.6, 5.8, 6.1, 4.4, 2.3, 2.3, 2.4, 2.5, 1.7, 0.7, 0.1, 1.8, 1.9, 2.8, 2.8, 3.6, 4.3, 3.8, 3.8, 3.3, 0.6, -1.3], "dy": [0.1, -0.4, -0.4, 1.8, 1.3, -1.7, 0.1, 0.7, 0.7, -0.8, -1.2, 1.0, 3.8, 3.4, 3.4, 0.4, 1.1, 2.0, 0.3, -0.5, -0.5, 2.2, 2.0, -1.0, -1.0, -1.4, -1.4, -1.3, 1.2, 2.6, 1.4, 1.0, 1.0, 0.5, -0.8, -0.1, 1.7, 1.7, 1.7, -0.3, -0.3, 1.5, 0.1, -2.8, -2.8, -2.8, 0.1, 0.2, -2.4, -2.4, -2.4, 0.1, 1.5, 0.8, 0.1, 0.2, 0.2, 0.2, 0.5, 0.2, -2.2, -1.9, -1.9, 0.7, 2.6, 1.9, 0.5, 1.3, 1.3, 2.7, 1.3, -0.1, 0.5, -0.1, -0.1, -3.7, -2.7, -0.2, -1.3, -1.2, -1.2, -1.1, -1.5, -1.1, -0.6, 0.5, 0.5, 0.4, 1.5, 1.5, -1.4, -3.1, -3.1, -1.7, 0.1, 2.3, 3.6, 2.3, 2.3, 0.1, -1.3, -1.1, 0.6, 1.9, 1.9, 2.7, 3.0, 2.8, 2.1, -0.1, -0.0, -0.6, 0.6, 0.6, -0.9, -1.5, -1.5, -0.9, 1.2, 2.9, 2.5, 2.6, 2.7, 1.5, -0.2, -2.3, -3.9, -1.9, -1.9, -0.4, -1.0, -1.0, -1.1, -0.1, -0.1, -1.3, -5.3, -4.5, -1.1, 1.7, 1.7, -0.7, -1.9, -1.4, -2.0, -2.3, -2.3, -1.0, -1.9, -2.1, 0.7, 4.4, 4.4, 4.0, 3.3, 3.3, 2.3, 3.6, 3.6, 4.0, 2.1, 0.1, -0.4, 1.1, 1.1, 0.4, 0.4, 0.9, -1.5, -3.4, -3.4, -2.9, -1.7, -2.3, -3.8, -1.8, -1.8, 0.3, 0.8, 1.8, 1.3, -1.1, -1.1, -0.4, 1.1, 1.2, 0.5, -1.9, -1.9, -1.7, 0.3, -2.0, -4.4, -2.6, -2.5, 2.1, 3.6, 3.3, 4.2, 3.3, 3.3, -0.8, -3.7, -3.1, -1.4, 0.4, 0.4, 1.9, 1.8, 0.5, 0.5, -1.2, -1.2, -1.7, -0.3, -0.3, -0.3, 0.8, 0.8, -0.5, -2.2, 1.5, 4.2, 3.2, 3.2, 0.6, -0.1, -0.4, -1.0, -1.1, -1.1, -0.2, -1.7, -2.6, 0.3, 3.2, 3.2, 2.4, 0.9, 2.5, 3.1, 1.7, 1.7, -0.1, -0.4, 0.5, -0.2, -1.5, -1.5, -0.3, 2.1, 1.0, -1.4, -1.0, -1.0, 0.3, -0.2, -1.6, -2.7, -3.1, -3.1, -0.8, -0.1, -1.3, -0.4, 1.7, 1.7, 0.7, -1.7, -0.3, 2.0, 2.4, 2.4, 1.4, 0.3, -2.1, -4.4, -4.1, -4.1, -1.7, -1.9, -2.1, -0.2, 0.2, 0.2, -2.4, -0.8, 2.7, 0.2, -2.1, -2.1, -2.1, -0.6, 1.8, 1.8, -1.6, -1.6, -3.7, -0.1, 3.5, 1.3, -1.5, -1.5, 0.6, 1.9, -0.1, -0.4, 1.4, 1.3, 0.3, -2.7, -2.3, -0.0, -0.8, -0.8, -1.8, -1.1, -0.6, -0.4, -1.4, -1.4, -1.4, 1.4, 2.8, 0.7, -1.2, -1.2, -1.2, -1.2, -0.2, 0.5, -1.3, -1.3, -1.0, 1.0, 2.2, 2.3, 0.5, 0.5, -2.8, -4.3, -1.2, 2.0, 2.2, 2.2, 0.5, 0.2, -1.9, -4.3, -4.2, -4.2, -1.9, 1.2, 2.6, 2.0, 0.3, 0.2, 0.1, 0.3, -0.1, 0.6, 2.0, 2.0, 0.8, -0.4, 0.2, -0.4, -0.9, -1.0, -1.6, -0.5, 0.2, -0.9, -0.2, -0.2, -0.8, -1.4, -1.2, -4.0, -2.6, -2.7, 0.1, -0.3, -2.2, -3.7, -3.8, -3.8, -2.4, 0.4, 1.6, 0.0, -0.9, -1.0, -1.4, -1.5, -0.4, 0.4, 0.5, 0.5, -0.4, -0.7, -0.7, -0.5, -0.6, -0.6, -3.0, -3.4, -0.1, 0.3, -1.7, -1.8, -3.5, -2.2, -1.0, -2.0, -0.6, -0.7, 1.3, 0.2, -0.8]};
+  const stage = document.getElementById("stage");
+  const film = document.getElementById("film");
+  const grain = document.getElementById("grain"), gctx = grain.getContext("2d");
+  const dust = document.getElementById("dust"), dctx = dust.getContext("2d");
+  grain.width = 480; grain.height = 270;
+  dust.width = 960; dust.height = 540;
+  const gimg = gctx.createImageData(480, 270);
+
+  function drawGrain() {
+    const d = gimg.data;
+    for (let i = 0; i < d.length; i += 4) { const v = (Math.random() * 255) | 0; d[i] = d[i+1] = d[i+2] = v; d[i+3] = 255; }
+    gctx.putImageData(gimg, 0, 0);
+  }
+
+  let specks = [];
+  function drawDust() {
+    dctx.clearRect(0, 0, 960, 540);
+    if (Math.random() < 0.35) {
+      const hair = Math.random() < 0.12;
+      specks.push({ x: Math.random() * 960, y: Math.random() * 540, r: .5 + Math.random() * 1.3, life: 2 + (Math.random() * 4 | 0),
+                    light: Math.random() < .5, hair, a: Math.random() * 6.28, len: 10 + Math.random() * 26 });
+    }
+    specks = specks.filter(s => s.life-- > 0);
+    for (const s of specks) {
+      dctx.fillStyle = dctx.strokeStyle = s.light ? "rgba(255,255,255,.55)" : "rgba(30,22,20,.5)";
+      if (s.hair) {
+        dctx.lineWidth = .8; dctx.beginPath(); dctx.moveTo(s.x, s.y);
+        dctx.quadraticCurveTo(s.x + Math.cos(s.a) * s.len * .5 + 4, s.y + Math.sin(s.a) * s.len * .5 - 4, s.x + Math.cos(s.a) * s.len, s.y + Math.sin(s.a) * s.len);
+        dctx.stroke();
+      } else { dctx.beginPath(); dctx.arc(s.x, s.y, s.r, 0, 6.283); dctx.fill(); }
+    }
+  }
+
+  let lastFrame = -1, lastEffects = 0, start = performance.now();
+  function loop(now) {
+    const f = Math.floor((now - start) / 1000 * 30) % WOBBLE.dx.length;
+    if (f !== lastFrame) {
+      lastFrame = f;
+      const k = stage.clientWidth / 1920;
+      film.style.transform = `translate3d(${(WOBBLE.dx[f] * k).toFixed(2)}px, ${(WOBBLE.dy[f] * k).toFixed(2)}px, 0)`;
+    }
+    if (now - lastEffects > 80) { lastEffects = now; drawGrain(); drawDust(); }
+    requestAnimationFrame(loop);
+  }
+  function startFilm() {
+    if (reduceMotion.matches) { film.style.transform = ""; dctx.clearRect(0, 0, 960, 540); grain.style.display = "none"; return; }
+    grain.style.display = ""; requestAnimationFrame(loop);
+  }
+  startFilm();
+
+  /* Instagram embeds are built at real pixel size, then scaled with the stage */
+  function fitEmbeds() {
+    const k = stage.clientWidth / 1920;
+    document.querySelectorAll(".embed").forEach(el => { el.style.transform = `translate(-50%, -50%) scale(${k.toFixed(4)})`; });
+    document.querySelectorAll(".spot").forEach(el => { el.style.transform = `scale(${k.toFixed(4)})`; });
+  }
+  fitEmbeds();
+  if (window.ResizeObserver) new ResizeObserver(fitEmbeds).observe(stage); else window.addEventListener("resize", fitEmbeds);
+  // Instagram tells the page how tall the reel card really is; use it if it does
+  window.addEventListener("message", e => {
+    if (e.origin !== "https://www.instagram.com") return;
+    try {
+      const d = typeof e.data === "string" ? JSON.parse(e.data) : e.data;
+      const h = d && d.type === "MEASURE" && d.details && +d.details.height;
+      if (h) document.getElementById("reel-embed").style.height = Math.min(900, Math.max(600, Math.round(h))) + "px";
+    } catch (_) {}
+  });
+</script>
+</body>
+</html>
